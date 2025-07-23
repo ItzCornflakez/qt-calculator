@@ -36,11 +36,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushButtonAddDecimalPoint, &QPushButton::clicked, this, &MainWindow::HandlePushButtonAddDecimalPointClicked);
     connect(ui->pushButtonEnter, &QPushButton::clicked, this, &MainWindow::HandlePushButtonEnterClicked);
 
-
-    double default_value = 0.0;
-    m_active_calculation_block.values.append(default_value);
-    m_active_calculation_block.operationTypes.append(OperationType::None);
-    calc_index = 0;
+    m_active_calculation_block.first_value = NOT_SET;
+    m_active_calculation_block.second_value = NOT_SET;
+    m_active_calculation_block.operation_type = OperationType::None;
 }
 
 MainWindow::~MainWindow()
@@ -50,59 +48,350 @@ MainWindow::~MainWindow()
 
 void MainWindow::HandlePushButtonPercentageClicked()
 {
-    ui->calculationTextBrowser->setText(QString::fromStdString("20"));
+    double& first = m_active_calculation_block.first_value;
+    double& second = m_active_calculation_block.second_value;
+    OperationType& operation_type = m_active_calculation_block.operation_type;
+
+    if(first == NOT_SET)
+    {
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("0"));
+        ui->calculationTextBrowser->setText(QString::fromStdString("0"));
+        m_current_display_string.clear();
+        return;
+    }
+
+    switch(operation_type)
+    {
+        case OperationType::Add:
+            if(m_current_display_string.empty())
+            {
+                second = first;
+                ui->tempTextHistoryBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(first))) + " + " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+                ui->calculationTextBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+            }
+            else
+            {
+                second = (first / 100) * std::stod(m_current_display_string);
+                ui->tempTextHistoryBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(first))) + " + " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+                ui->calculationTextBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+            }
+            break;
+        case OperationType::Subtract:
+            if(m_current_display_string.empty())
+            {
+                second = first;
+                ui->tempTextHistoryBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(first))) + " - " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+                ui->calculationTextBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+            }
+            else
+            {
+                second = (first / 100) * std::stod(m_current_display_string);
+                ui->tempTextHistoryBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(first))) + " - " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+                ui->calculationTextBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(std::to_string(static_cast<int>(second)))));
+            }
+            break;
+        default:
+            break;
+
+    }
+
+    m_current_display_string.clear();
+
 }
 
 void MainWindow::HandlePushButtonClearEntryClicked()
 {
+    m_current_display_string.clear();
     ui->calculationTextBrowser->setText(QString::fromStdString("0"));
 }
 
 void MainWindow::HandlePushButtonClearClicked()
 {
+    m_active_calculation_block.first_value = NOT_SET;
+    m_active_calculation_block.second_value = NOT_SET;
+    m_active_calculation_block.operation_type = OperationType::None;
+
+    m_current_display_string.clear();
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString(""));
     ui->calculationTextBrowser->setText(QString::fromStdString("0"));
+
 }
 
 void MainWindow::HandlePushButtonBackSpaceClicked()
 {
-    ui->calculationTextBrowser->setText(QString::fromStdString("20"));
+    if(m_current_display_string.empty())
+        return;
+
+    m_current_display_string = m_current_display_string.substr(0, m_current_display_string.size()-1);
+
+    ui->calculationTextBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(m_current_display_string)));
 }
 
 void MainWindow::HandlePushButtonAddClicked()
 {
+    m_active_calculation_block.operation_type = OperationType::Add;
 
-    m_active_calculation_block.operationTypes.replace(calc_index, OperationType::Add);
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("+ " + SplitNumbersIntoGroups(m_current_display_string)));
+    double& first = m_active_calculation_block.first_value;
+    double& second = m_active_calculation_block.second_value;
+
+    if(m_current_display_string.empty())
+    {
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("+ " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first)))));
+        return;
+    }
+
+    if(first == NOT_SET)
+    {
+        first = std::stod(m_current_display_string);
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("+ " + SplitNumbersIntoGroups(m_current_display_string)));
+        m_current_display_string.clear();
+        return;
+    }
+
+    if(second == NOT_SET)
+        second = std::stod(m_current_display_string);
+
+    std::string temp_history_output;
+    std::string calculation_output;
+
+    if(std::floor(first+second) == first+second)
+    {
+        temp_history_output = "+ " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first+second)));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(static_cast<int>(first+second)));
+    }
+    else
+    {
+        temp_history_output = "+ " + SplitNumbersIntoGroups(std::to_string(first+second));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(first+second));
+    }
+
+
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString(temp_history_output));
+    ui->calculationTextBrowser->setText(QString::fromStdString(calculation_output));
+    m_current_display_string.clear();
+
+    first = first+second;
+    second = NOT_SET;
+
 }
 
 void MainWindow::HandlePushButtonSubtractClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("20"));
+    m_active_calculation_block.operation_type = OperationType::Subtract;
+
+    double& first = m_active_calculation_block.first_value;
+    double& second = m_active_calculation_block.second_value;
+
+    if(m_current_display_string.empty())
+    {
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("- " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first)))));
+        return;
+    }
+
+    if(first == NOT_SET)
+    {
+        first = std::stod(m_current_display_string);
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("- " + SplitNumbersIntoGroups(m_current_display_string)));
+        m_current_display_string.clear();
+        return;
+    }
+
+    if(second == NOT_SET)
+        second = std::stod(m_current_display_string);
+
+    std::string temp_history_output;
+    std::string calculation_output;
+
+    if(std::floor(first-second) == first-second)
+    {
+        temp_history_output = "- " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first-second)));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(static_cast<int>(first-second)));
+    }
+    else
+    {
+        temp_history_output = "- " + SplitNumbersIntoGroups(std::to_string(first-second));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(first-second));
+    }
+
+
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString(temp_history_output));
+    ui->calculationTextBrowser->setText(QString::fromStdString(calculation_output));
+    m_current_display_string.clear();
+
+    first = first-second;
+    second = NOT_SET;
 }
 
 void MainWindow::HandlePushButtonMultiplyClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("20"));
+    m_active_calculation_block.operation_type = OperationType::Multiply;
+
+    double& first = m_active_calculation_block.first_value;
+    double& second = m_active_calculation_block.second_value;
+
+    if(m_current_display_string.empty())
+    {
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("* " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first)))));
+        return;
+    }
+
+    if(first == NOT_SET)
+    {
+        first = std::stod(m_current_display_string);
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("* " + SplitNumbersIntoGroups(m_current_display_string)));
+        m_current_display_string.clear();
+        return;
+    }
+
+    if(second == NOT_SET)
+        second = std::stod(m_current_display_string);
+
+    std::string temp_history_output;
+    std::string calculation_output;
+
+    if(std::floor(first*second) == first*second)
+    {
+        temp_history_output = "* " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first*second)));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(static_cast<int>(first*second)));
+    }
+    else
+    {
+        temp_history_output = "* " + SplitNumbersIntoGroups(std::to_string(first*second));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(first*second));
+    }
+
+
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString(temp_history_output));
+    ui->calculationTextBrowser->setText(QString::fromStdString(calculation_output));
+    m_current_display_string.clear();
+
+    first = first*second;
+    second = NOT_SET;
 }
 
 void MainWindow::HandlePushButtonDivideClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("20"));
+    m_active_calculation_block.operation_type = OperationType::Divide;
+
+    double& first = m_active_calculation_block.first_value;
+    double& second = m_active_calculation_block.second_value;
+
+    if(m_current_display_string.empty())
+    {
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("/ " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first)))));
+        return;
+    }
+
+    if(first == NOT_SET)
+    {
+        first = std::stod(m_current_display_string);
+        ui->tempTextHistoryBrowser->setText(QString::fromStdString("/ " + SplitNumbersIntoGroups(m_current_display_string)));
+        m_current_display_string.clear();
+        return;
+    }
+
+    if(second == NOT_SET)
+        second = std::stod(m_current_display_string);
+
+    std::string temp_history_output;
+    std::string calculation_output;
+
+    if(std::floor(first/second) == first/second)
+    {
+        temp_history_output = "/ " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first/second)));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(static_cast<int>(first/second)));
+    }
+    else
+    {
+        temp_history_output = "/ " + SplitNumbersIntoGroups(std::to_string(first/second));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(first/second));
+    }
+
+
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString(temp_history_output));
+    ui->calculationTextBrowser->setText(QString::fromStdString(calculation_output));
+    m_current_display_string.clear();
+
+    first = first/second;
+    second = NOT_SET;
 }
 
 void MainWindow::HandlePushButtonSquareClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("20"));
+    m_active_calculation_block.operation_type = OperationType::Square;
+
+    double& first = m_active_calculation_block.first_value;
+    double& second = m_active_calculation_block.second_value;
+
+    std::string temp_history_output;
+    std::string calculation_output;
+
+    if(m_current_display_string.empty())
+    {
+        if(ui->tempTextHistoryBrowser->toPlainText().toStdString().empty())
+        {
+            ui->tempTextHistoryBrowser->setText(QString::fromStdString("sqr(0)"));
+        }
+        else
+        {
+            ui->tempTextHistoryBrowser->setText(QString::fromStdString("sqr(" + ui->tempTextHistoryBrowser->toPlainText().toStdString() + ")"));
+        }
+        return;
+    }
+
+    if(first == NOT_SET)
+    {
+        first = std::stod(m_current_display_string);
+
+        if(std::floor(pow(first, 2)) == pow(first, 2))
+        {
+            temp_history_output = "sqr(" + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first)) + ")");
+            calculation_output = SplitNumbersIntoGroups(std::to_string(static_cast<int>(pow(first, 2))));
+        }
+        else
+        {
+            temp_history_output = "sqr(" + SplitNumbersIntoGroups(std::to_string(first) + ")");
+            calculation_output = SplitNumbersIntoGroups(std::to_string(pow(first, 2)));
+        }
+
+        return;
+    }
+
+    if(second == NOT_SET)
+        second = std::stod(m_current_display_string);
+
+
+
+    if(std::floor(first/second) == first/second)
+    {
+        temp_history_output = "/ " + SplitNumbersIntoGroups(std::to_string(static_cast<int>(first/second)));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(static_cast<int>(first/second)));
+    }
+    else
+    {
+        temp_history_output = "/ " + SplitNumbersIntoGroups(std::to_string(first/second));
+        calculation_output = SplitNumbersIntoGroups(std::to_string(first/second));
+    }
+
+
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString(temp_history_output));
+    ui->calculationTextBrowser->setText(QString::fromStdString(calculation_output));
+    m_current_display_string.clear();
+
+    first = first/second;
+    second = NOT_SET;
 }
 
 void MainWindow::HandlePushButtonSquareRootClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("20"));
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString("sqrt() " + SplitNumbersIntoGroups(m_current_display_string)));
+    m_current_display_string = "";
 }
 
 void MainWindow::HandlePushButtonOneOverXClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("20"));
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString("1/ " + SplitNumbersIntoGroups(m_current_display_string)));
+    m_current_display_string = "";
 }
 
 void MainWindow::HandlePushButtonNumberClicked(int number)
@@ -124,7 +413,70 @@ void MainWindow::HandlePushButtonAddDecimalPointClicked()
 
 void MainWindow::HandlePushButtonEnterClicked()
 {
-    ui->tempTextHistoryBrowser->setText(QString::fromStdString("= " + SplitNumbersIntoGroups(m_current_display_string)));
+    /*
+    m_active_calculation_block.values.append(std::stod(m_current_display_string));
+
+    std::string temp_history_output;
+    std::string calculation_output;
+    double calculation_output_value;
+
+    if(m_active_calculation_block.values.size() == 1)
+    {
+        double firstNumber = m_active_calculation_block.values.first();
+        if(std::floor(firstNumber) == firstNumber)
+        {
+            temp_history_output = SplitNumbersIntoGroups(std::to_string((static_cast<int>(firstNumber)))) +
+                                  " + " + SplitNumbersIntoGroups(std::to_string((static_cast<int>(firstNumber))));
+        }
+        else
+        {
+            temp_history_output = SplitNumbersIntoGroups(std::to_string((firstNumber))) +
+                                  " + " + SplitNumbersIntoGroups(std::to_string((firstNumber)));
+        }
+
+        calculation_output_value += firstNumber*2;
+    }
+    else
+    {
+        for(int i = 0; i < m_active_calculation_block.values.size(); i++)
+        {
+            double value = m_active_calculation_block.values.at(i);
+            if(std::floor(value) == value)
+            {
+                if(i != 0)
+                    temp_history_output += "+" + SplitNumbersIntoGroups(std::to_string(static_cast<int>(value)));
+                else
+                    temp_history_output += SplitNumbersIntoGroups(std::to_string(static_cast<int>(value)));
+            }
+            else
+            {
+                temp_history_output += "+" + SplitNumbersIntoGroups(std::to_string((value)));
+            }
+
+            calculation_output_value += value;
+        }
+    }
+
+    switch (m_active_calculation_block.operation_type) {
+    case OperationType::Add:
+        break;
+    default:
+        break;
+    }
+
+
+    if(std::floor(calculation_output_value) == calculation_output_value)
+        calculation_output = std::to_string(static_cast<int>(calculation_output_value));
+    else
+        calculation_output = std::to_string((calculation_output_value));
+
+    ui->tempTextHistoryBrowser->setText(QString::fromStdString("= " + temp_history_output));
+    ui->calculationTextBrowser->setText(QString::fromStdString(SplitNumbersIntoGroups(calculation_output)));
+    m_current_display_string = "";
+    m_active_calculation_block = {};
+    m_active_calculation_block.operation_type = OperationType::None;
+
+    */
 }
 
 std::string MainWindow::SplitNumbersIntoGroups(std::string numeric_string)

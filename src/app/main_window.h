@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 
+#include <cmath>
+
 #include "data/types.h"
 
 QT_BEGIN_NAMESPACE
@@ -48,6 +50,6 @@ private:
     QList<CalculationBlock> m_calculation_blocks;
     CalculationBlock m_active_calculation_block;
     std::string m_current_display_string;
-    int calc_index;
+
 };
 #endif // MAIN_WINDOW_H
