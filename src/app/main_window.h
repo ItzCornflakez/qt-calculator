@@ -4,6 +4,8 @@
 #include <QMainWindow>
 
 #include <cmath>
+#include <sstream>
+#include <iomanip>
 
 #include "data/types.h"
 
@@ -44,6 +46,7 @@ private slots:
 private:
 
     std::string SplitNumbersIntoGroups(std::string numeric_string);
+    std::string FormatNumber(double num);
 
     Ui::MainWindow *ui;
 
